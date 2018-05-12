@@ -1,0 +1,6 @@
+keras==2.0.8
+Theano==1.0.1
+python-speech-features==0.6
+numpy==1.14.0
+scikit-learn==0.19.0
+scipy==1.0.0
