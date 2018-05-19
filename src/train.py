@@ -30,6 +30,7 @@ from keras.layers.wrappers import TimeDistributed
 from keras.utils.np_utils import to_categorical
 from sklearn.metrics import matthews_corrcoef, accuracy_score
 
+#get accuracy for binary predicts
 def score_seq(model, xt, yt, ind):
     pred = []
     true = []
@@ -44,6 +45,7 @@ def score_seq(model, xt, yt, ind):
         mat = 0
     return mat  
 
+#get accuracy for 4-class predicts
 def score_seq4(model, xt, yt):
     pred = []
     true = []
@@ -62,13 +64,17 @@ class RNN():
         self.params = params
         self.model = self.build(params)
         
+    #build the model for 4-class classification
     def build(self, params):
+        #Noise RNN
         inp = Input((None, 130,))
         m = get_rnn(params['rnn_type'], params['units'], params['activation'])(inp)
         for i in range(params['deep'] - 1):
             m = get_rnn(params['rnn_type'], params['units'], params['activation'])(m)
         noise = TimeDistributed(Dense(1, activation='sigmoid'))(m)
+        #Noise Masking
         inp2 = Lambda(lambda x: (1-x[0])*x[1], output_shape=(None,130))([noise, inp])
+        #Anomaly RNN
         m1 = get_rnn(params['rnn_type'], params['units'], params['activation'], params['deep'] > 1)(inp2)
         for i in range(params['deep'] - 1):
             m1 = get_rnn(params['rnn_type'], params['units'], params['activation'], params['deep'] > i+2)(m1)
@@ -76,7 +82,8 @@ class RNN():
         model = Model(inp, [noise, m1])
         model.compile(loss=['binary_crossentropy','categorical_crossentropy'], loss_weights=[0.3, 0.7], optimizer=get_optimizer(params['optimizer'],params['lr']))
         return model
-
+    
+    #train method. provides training of the model batch by batch (because all batches has different lengths as sound samples)
     def train(self, X_train, X_test, y_train, y_test, y_train_noise, y_test_noise, epochs):
         self.losses = []
         best_test_m = 0
@@ -114,6 +121,7 @@ def add_experiment(X_train, X_test, y_train, y_test, y_train_noise, y_test_noise
     gc.collect()
     return rnn, losses, bm, bmn
 
+#this method provides gridsearch over search space using cross-validation
 def gridsearch(X_cv, y_cv, y4_cv, yn_cv,S, experiment_path, search_space, cv):
     if (not os.path.exists(experiment_path)):
         os.mkdir(experiment_path)
@@ -133,23 +141,30 @@ def gridsearch(X_cv, y_cv, y4_cv, yn_cv,S, experiment_path, search_space, cv):
             tr, te = k[0], k[1]
             tr = [S[t] for t in tr]
             te = [S[t] for t in te]
+            #split data
             X_train, y_train, y4_train, yn_train = X_cv[tr], y_cv[tr], y4_cv[tr], yn_cv[tr]
             X_test, y_test, y4_test, yn_test = X_cv[te], y_cv[te], y4_cv[te], yn_cv[te]
             y4_test = to_categorical(y4_test)
             y4_train = to_categorical(y4_train)
             X_test, y_test, y4_test, yn_test = split_data(X_test, y_test, y4_test, yn_test)
             X_train, y_train, y4_train, yn_train = split_data(X_train, y_train, y4_train, yn_train)
+            #train model
             nn, losses, bm, bmn = add_experiment(X_train, X_test, y4_train, y4_test, yn_train, yn_test, params)
+            #save model
             save_model(nn.model, cur_exp_path, j)
+            #save metrics and parameters
             stats.loc[stats.shape[0]] = [i, params['optimizer'], params['lr'], params['rnn_type'], params['activation'], params['units'], params['deep'], bm, bmn]
+            #save learning history
             histories[str(i)+"_"+str(j)] = losses
             pickle.dump(histories, open(history_filename, 'wb'))
             stats.to_csv(stats_filename, index=False)
         i += 1
     
 if __name__ == '__main__':
+    #load data and cv split
     X, y, y4, yn, S  = pickle.load(open(args.data_path, 'rb')) 
     cv = pickle.load(open(args.cv_path, 'rb'))
+    #setup hyperparameters grid
     search_space = {'optimizer' : {'adam' : {'lr' : [0.0001]}},
                  'activation' : ['tanh'],
                  'epochs' : [1],
