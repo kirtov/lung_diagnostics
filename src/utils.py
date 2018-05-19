@@ -1,3 +1,4 @@
+#There are a lot of utils. Split function, Different RNN types, activations, optimizators etc. And also grid_generator, which provides iteration over search space (with embedded dicts)
 import warnings
 warnings.filterwarnings("ignore")
 import pandas as pd
