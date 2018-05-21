@@ -1,6 +1,8 @@
 # Lung Diagnostics
 This repository is an implementation of Noise Masking RNN for respiratory sound classification proposed in our [paper](paper.pdf)
 
+[Video presentation about the project](https://youtu.be/SuWTLgc-LP8)
+
 ![alt text](https://raw.githubusercontent.com/kirtov/lung_diagnostics/master/rnn_schema.png)
 
 
